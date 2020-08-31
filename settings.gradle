@@ -1,0 +1,2 @@
+rootProject.name='FrameWorkApplication'
+include ':app', ':framework', ':netframework'

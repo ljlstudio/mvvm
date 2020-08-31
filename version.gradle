@@ -1,0 +1,145 @@
+
+project.ext {
+    currentVersionName = "1"
+    //打包日期
+    releaseTime = releaseTime()
+    // release so
+    abiFilters = ["arm64-v8a"] as String[]
+//    abiFilters = [""] as String[] // 不带so文件
+
+    //设置版本信息
+    dattexVersionCode = 1
+    dattexVersionName = "1.0.0"
+
+
+}
+
+/**
+ * 自增长版本号
+ * @param betaVersionCode
+ * @param betaVersionName
+ * @param releaseVersionCode
+ * @param releaseVersionName
+ * @return
+ */
+def increasedVersionCode(String betaVersionCode, String betaVersionName, String releaseVersionCode, String releaseVersionName) {
+    def versionFile = file('version.properties')
+    def buildType = getBuildType()
+    if (versionFile.exists()) {
+        def Properties versionProps = new Properties()
+        versionProps.load(new FileInputStream(versionFile))
+        def versionCode
+        switch (buildType) {
+            case "release":
+                versionCode = versionProps[releaseVersionCode]
+                versionCode = Integer.parseInt(versionCode) + 1
+                println("version --- >" + versionCode + " --->" + releaseVersionCode)
+                break
+            case "beta":
+                versionCode = versionProps[betaVersionCode]
+                break
+            case "debug":
+                versionCode = versionProps[betaVersionCode]
+                break
+        }
+        return versionCode
+    } else {
+        throw new GradleException("Could not find version.properties!")
+    }
+}
+
+/**
+ * 获取build类型
+ * @return
+ */
+def getBuildType() {
+    def runTasks = gradle.startParameter.taskNames
+    println("runTasks --- >" + runTasks)
+
+    if ('assembleRelease' in runTasks) {
+        return "release"
+    } else if ('assembleBeta' in runTasks) {
+        return "beta"
+    } else {
+        return "release"
+    }
+}
+
+/**
+ * 格式化时间
+ * @return
+ */
+def releaseTime() {
+    return new Date().format("yyyyMMdd", TimeZone.getTimeZone("UTC"))
+}
+
+/**
+ * 读取local.properties文件内容
+ * @return
+ */
+def readLocalProperties() {
+    File file = rootProject.file('version.properties')
+    if (file.exists()) {
+        //加载资源
+        InputStream inputStream = rootProject.file('version.properties').newDataInputStream();
+        Properties properties = new Properties()
+        properties.load(inputStream)
+
+        if (properties.containsKey("sdk.dir")) {
+            println properties.getProperty("sdk.dir")
+        }
+    }
+}
+
+/**
+ * 获取版本号，操作版本号的改变逻辑
+ * @param versionCode
+ * @return
+ */
+def increaseVersionCode(versionCode, versionName) {
+    try {
+        def versionPropsFile = project.rootProject.file("version.properties")
+        Properties versionProps = new Properties()
+        versionProps.load(versionPropsFile.newDataInputStream())
+
+        //1.获取当前版本号
+        def curVersionCode = versionProps.getProperty(versionCode).toInteger()
+
+        if (curVersionCode.toString() == null) {
+            curVersionCode = 0
+        }
+
+        //2.将当前版本号自增+1，作为下一次的版本号
+        versionProps[versionCode] = (++curVersionCode).toString()
+        //2.1修改版号名
+        versionProps[versionName] = getVersionPropsField("BUILD_VERSION_CODE").toString() + (--curVersionCode).toString()
+
+        //3.自增后的版本号数据持久化
+        versionProps.store(versionPropsFile.newWriter(), null)
+
+        //4.返回当前版本号
+        return curVersionCode
+
+    } catch (Exception e) {
+        e.printStackTrace()
+    }
+}
+
+/**
+ * 获取version.properties中目标字段的值
+ * @param targetField
+ */
+def getVersionPropsField(targetField) {
+    try {
+        Properties properties = new Properties()
+        properties.load(project.rootProject.file("version.properties").newDataInputStream())
+
+        if (properties.containsKey(targetField)) {
+            return properties.getProperty(targetField)
+        } else {
+            throw new NullPointerException("Could not find " + targetField)
+        }
+    } catch (Exception e) {
+        e.printStackTrace()
+    }
+}
